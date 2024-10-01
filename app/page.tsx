@@ -1,101 +1,216 @@
-import Image from "next/image";
+"use client";
 
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import React, { Suspense, useRef, useState } from "react";
+import { formatDate } from "@fullcalendar/core";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import dayjs from "dayjs";
+import { currentWeek, endDayWeek, startDayWeek } from "./lib/constants";
+import { DatePicker, Select, Space } from "antd";
+import { cn, getRandomColor } from "./lib/utils";
+
+const { RangePicker } = DatePicker;
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [currentEvents, setCurrentEvents] = useState([]);
+  const calendarRef = useRef(null);
+  const [title, setTitle] = useState(currentWeek);
+  const [startDay, setStartDay] = useState(startDayWeek);
+  const [endDay, setEndDay] = useState(endDayWeek);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  function handleDateSelect(selectInfo) {
+    let title = prompt("Please enter a new title for your event");
+    let calendarApi = selectInfo.view.calendar;
+    const colorRandom = getRandomColor();
+    calendarApi.unselect();
+    if (title) {
+      calendarApi.addEvent({
+        id: 1,
+        title,
+        start: selectInfo.startStr,
+        end: selectInfo.endStr,
+        backgroundColor: colorRandom,
+        allDay: selectInfo.allDay,
+      });
+    }
+  }
+
+  function handleEventClick(clickInfo) {
+    if (
+      confirm(
+        `Are you sure you want to delete the event '${clickInfo.event.title}'`
+      )
+    ) {
+      clickInfo.event.remove();
+    }
+  }
+
+  function handleEvents(events) {
+    setCurrentEvents(events);
+  }
+
+  function handleDatesSet(dateInfo) {
+    const startOfWeek = dayjs(dateInfo.start).format("MMM D");
+    const endOfWeek = dayjs(dateInfo.end).format("MMM D, YYYY");
+    const fullOfWeek = `${startOfWeek} - ${endOfWeek}`;
+    setTitle(fullOfWeek);
+  }
+
+  const handleRangeChange = (dates) => {
+    if (dates) {
+      const calendarApi = calendarRef.current.getApi();
+      const [start, end] = dates;
+      calendarApi.gotoDate(dayjs(start).toISOString());
+    }
+  };
+
+  function goNext() {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.next();
+  }
+  function goPrevious() {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.prev();
+  }
+  function goToday() {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.today();
+  }
+  function goMonth() {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.changeView("dayGridMonth");
+  }
+  function goDay() {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.changeView("timeGridDay");
+  }
+  function goWeek() {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.changeView("timeGridWeek");
+  }
+
+  const handleChange = (value: string) => {
+    switch (value) {
+      case "week":
+        goWeek();
+        break;
+      case "day":
+        goDay();
+        break;
+      case "month":
+        goMonth();
+        break;
+      default:
+        break;
+    }
+  };
+
+  return (
+    <div className="demo-app">
+      <div
+        className="demo-app-main"
+        style={{
+          maxWidth: "1120px",
+          margin: "40px auto",
+        }}
+      >
+        <div className="flex justify-between">
+          <Select
+            defaultValue="week"
+            style={{ width: 120, height: 40 }}
+            onChange={handleChange}
+            options={[
+              { value: "day", label: "Day" },
+              { value: "week", label: "Week" },
+              { value: "month", label: "Month" },
+            ]}
+          />
+          {/* DATEPICKER */}
+          <div className="flex">
+            <div
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 border-neutral-400 cursor-pointer border-r-[1px]"
+              onClick={goPrevious}
+            >
+              {"<"}
+            </div>
+            <div
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 border-neutral-500 cursor-pointer"
+              onClick={goToday}
+            >
+              Today
+            </div>
+
+            <RangePicker
+              defaultValue={[startDay, endDay]}
+              format={"DD/MM/YYYY"}
+              onChange={handleRangeChange}
+              className="rounded-none"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <div
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 border-neutral-500 cursor-pointer"
+              onClick={goNext}
+            >
+              {">"}
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        {/* GRID CALENDAR */}
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          headerToolbar={{
+            start: "",
+            center: "",
+            end: "",
+          }}
+          initialView="timeGridWeek"
+          editable={true}
+          selectable={true}
+          selectMirror={true}
+          dayMaxEvents={true}
+          slotEventOverlap={true}
+          nowIndicator={true}
+          initialEvents={[
+            {
+              id: "event 1",
+              title: "event 1",
+              start: "2024-10-01T10:00:00",
+              end: "2024-10-01T12:00:00",
+            },
+            {
+              id: "event 2",
+              title: "event 2",
+              start: "2024-10-02T14:00:00",
+              end: "2024-10-02T15:30:00",
+            },
+          ]}
+          customButtons={{
+            dateTimePicker: {
+              text: `${title}`,
+              click: (arg) => {
+                console.log("click", arg);
+              },
+            },
+          }}
+          select={handleDateSelect}
+          eventContent={renderEventContent}
+          eventClick={handleEventClick}
+          eventsSet={handleEvents}
+          datesSet={handleDatesSet} // Add the datesSet handler
+        />
+      </div>
+    </div>
+  );
+}
+
+function renderEventContent(eventInfo) {
+  return (
+    <div className={`flex gap-2 ${eventInfo.event.backgroundColor}`}>
+      <i>{eventInfo.event.title}</i>
+      {/* <b>
+        {startTime} - {endTime}
+      </b> */}
     </div>
   );
 }
